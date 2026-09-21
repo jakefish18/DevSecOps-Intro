@@ -1,0 +1,36 @@
+name: Lab 1 smoke test
+
+# Starts the pinned Juice Shop image and fails the job unless the app answers
+# on /rest/admin/application-version within 60 seconds. pull_request (not
+# pull_request_target) so a fork PR runs with a read-only token and no secrets.
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+
+    services:
+      juice-shop:
+        image: bkimminich/juice-shop:v20.0.0
+        ports:
+          - 3000:3000
+
+    steps:
+      - name: Poll Juice Shop until it answers
+        run: |
+          for i in $(seq 1 60); do
+            if curl --silent --fail http://localhost:3000/rest/admin/application-version; then
+              echo
+              echo "Juice Shop answered after ${i}s"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Juice Shop did not answer within 60s"
+          exit 1
