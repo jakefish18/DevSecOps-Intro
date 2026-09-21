@@ -1,0 +1,32 @@
+# Pre-commit hooks for DevSecOps-Intro.
+# Installed with `pre-commit install`; the hooks run on STAGED files before the
+# commit object exists, so a blocked secret never enters history at all — which
+# is the whole point. Catching it in CI means it is already pushed.
+#
+# Every `rev:` is a real, pinned tag. An unpinned hook is remote code that can
+# change between one commit and the next, and it runs on your machine.
+
+exclude: |
+  (?x)^(
+    labs/lab6/vulnerable-iac/.*
+  )$
+
+repos:
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.1
+    hooks:
+      - id: gitleaks
+        name: Detect hardcoded secrets
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      # Catches what gitleaks is weakest at: a whole private key file committed
+      # verbatim, rather than a token pattern embedded in source.
+      - id: detect-private-key
+
+      # Threagile reports, SBOMs and scan output get regenerated every lab. One
+      # stray artifact in a commit bloats the repository permanently, because a
+      # blob stays reachable from history even after the file is deleted.
+      - id: check-added-large-files
+        args: ["--maxkb=1024"]
