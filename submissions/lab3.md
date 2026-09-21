@@ -59,22 +59,31 @@ cda2b88 G Insaf Garifullin <jakefish.work@gmail.com> test: first signed commit
 
 <https://github.com/jakefish18/DevSecOps-Intro/commit/cda2b888a925226d7829d8dde29ec3db4005705b>
 
-**Status at the time of writing: signed locally, not yet Verified on GitHub.** The GitHub API reports:
+All three commits on this branch carry the green **Verified** badge:
 
 ```console
-$ gh api repos/jakefish18/DevSecOps-Intro/commits/cda2b88 --jq '.commit.verification'
-verified = false
-reason   = unknown_key
-author   = jakefish18        # the commit IS linked to my account
+$ for sha in $(git rev-list main..HEAD); do
+    gh api repos/jakefish18/DevSecOps-Intro/commits/$sha \
+      --jq '"\(.sha[0:7]) verified=\(.commit.verification.verified) reason=\(.commit.verification.reason) user=\(.author.login)"'
+  done
+9d3c4f9 verified=true reason=valid user=jakefish18
+4b586b6 verified=true reason=valid user=jakefish18
+cda2b88 verified=true reason=valid user=jakefish18
 ```
 
-`unknown_key` is the remaining half of step 3.2: the key is registered on my account as an
-*Authentication* key only, and GitHub treats the two roles as separate registrations. The signature
-itself is good — `git log --show-signature` verifies it offline against `allowed_signers` — and the
-commit is correctly attributed to `jakefish18` now that `user.email` is set. Adding the same key bytes
-at Settings → SSH and GPG keys → New SSH key with **Key type: Signing Key** flips this to
-`verified = true` for every already-pushed commit, because GitHub evaluates signatures at read time
-against the keys currently on the account rather than storing a verdict at push time.
+Getting there took the step the lab's pitfall list warns about, and it is worth recording because the
+intermediate state was genuinely confusing. Immediately after pushing, the same query returned
+`verified=false, reason=unknown_key` even though `git log --show-signature` verified the signature
+locally without complaint. The key was already on my GitHub account — but registered under the
+**Authentication** role, which GitHub treats as a completely separate registration from the **Signing**
+role. Pasting the identical key bytes a second time at Settings → SSH and GPG keys → New SSH key with
+*Key type: Signing Key* fixed it.
+
+The detail I did not expect: it fixed it **retroactively**, for commits that had been pushed twenty
+minutes earlier. GitHub does not stamp a verdict onto a commit at push time and store it; it re-evaluates
+the signature against the keys currently on the account every time the commit is displayed. That cuts
+both ways — deleting the signing key from my account would turn all three badges back to Unverified
+without touching a single byte of the repository.
 
 ### What a forged author line buys an attacker here
 
