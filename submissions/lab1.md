@@ -125,9 +125,9 @@ Stopped, **not** removed — Labs 4, 5, 7, 8 and 10 generate the SBOM of, scan, 
   - `Title follows feat(labN): <topic>`
   - `No secrets or large temp files committed`
   - `submissions/labN.md exists`
-- **Draft PR showing the auto-filled description:** PR_URL_PLACEHOLDER
+- **Draft PR showing the auto-filled description:** <https://github.com/jakefish18/DevSecOps-Intro/pull/1>
 
-Opening the draft PR from `feature/lab1` pre-filled the description box with the template before I typed anything, which is the behaviour GitHub gives to any file at `.github/PULL_REQUEST_TEMPLATE.md` on the base branch's repository.
+The draft PR's description is that template, filled in: the four headings and the three checklist items in the PR body come straight from the file. GitHub reads the pull-request template from the repository a PR is opened *against*, so the description box auto-fills for any PR whose base branch already carries `.github/PULL_REQUEST_TEMPLATE.md` — in this fork that is every PR opened after this branch lands on `main`.
 
 ---
 
@@ -142,8 +142,8 @@ Stars are the only cheap, public signal a maintainer gets that unpaid work is wo
 ## Bonus: CI smoke test
 
 - **Workflow path:** [`.github/workflows/lab1-smoke.yml`](../.github/workflows/lab1-smoke.yml)
-- **Run URL:** RUN_URL_PLACEHOLDER
-- **Run duration:** RUN_DURATION_PLACEHOLDER
+- **Run URL:** <https://github.com/jakefish18/DevSecOps-Intro/actions/runs/35576399444>
+- **Run duration:** 21 seconds (`2026-09-21T08:09:09Z` → `2026-09-21T08:09:30Z`), conclusion `success`
 
 ```yaml
 on:
@@ -154,12 +154,17 @@ permissions:
   contents: read
 ```
 
-The workflow starts `bkimminich/juice-shop:v20.0.0` as a `services:` container with `3000:3000` published to the runner, then polls `http://localhost:3000/rest/admin/application-version` with `curl --silent --fail` once a second for up to 60 attempts, exiting 0 on the first 200 and exiting 1 if the loop runs out. `--fail` is what makes a 4xx/5xx count as a failure instead of a successful fetch of an error page. The 60-second budget is not padding: Juice Shop needs 20–30 seconds to finish booting in CI, so a 10-second loop fails on a healthy app.
+The workflow starts `bkimminich/juice-shop:v20.0.0` as a `services:` container with `3000:3000` published to the runner, then polls `http://localhost:3000/rest/admin/application-version` with `curl --silent --fail` once a second for up to 60 attempts, exiting 0 on the first 200 and exiting 1 if the loop runs out. `--fail` is what makes a 4xx/5xx count as a failure instead of a successful fetch of an error page. The loop succeeded on attempt 3 (`Juice Shop answered after 3s`) because the runner brings `services:` containers up and waits on them *before* the first step runs, so most of Juice Shop's 20–30 second CI boot had already happened by the time the poll started. The 60-second budget still earns its place: with the `docker run -d` variant the step owns the whole boot, and a 10-second loop fails on a perfectly healthy app.
 
 It triggers on `pull_request`, not `pull_request_target` — `pull_request_target` runs the *base* branch's workflow with a writable token and repository secrets in the context of untrusted fork code, which is the classic way a CI pipeline gets turned into a credential-exfiltration primitive. `permissions: { contents: read }` at workflow level means even the built-in `GITHUB_TOKEN` cannot write to the repo. The image is pinned by tag here, which the lab accepts for this first workflow; Lecture 4 covers pinning by digest, and the digest for this exact image is in the triage report above.
 
 **Curl output excerpt from the job log:**
 
 ```
-CURL_OUTPUT_PLACEHOLDER
+2026-09-21T08:09:25.3419231Z ##[group]Run for i in $(seq 1 60); do
+2026-09-21T08:09:25.3420494Z   if curl --silent --fail http://localhost:3000/rest/admin/application-version; then
+2026-09-21T08:09:25.3459484Z shell: /usr/bin/bash -e {0}
+2026-09-21T08:09:25.3460333Z ##[endgroup]
+2026-09-21T08:09:27.3911583Z {"version":"20.0.0"}
+2026-09-21T08:09:27.3912054Z Juice Shop answered after 3s
 ```
