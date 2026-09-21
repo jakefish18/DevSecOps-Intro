@@ -1,0 +1,26 @@
+# gitleaks configuration for this fork.
+#
+# Deliberately value-scoped, not path-scoped: each entry names an exact literal,
+# so gitleaks keeps scanning every other string in every file — including the next
+# line of the same file. See the "tuning out AKIA... examples" section of
+# submissions/lab3.md for why a `paths = ["submissions/"]` exclusion would be the
+# wrong instrument here.
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Fake GitHub PATs published in labs/lab3.md itself, quoted verbatim in the Lab 3 report"
+regexTarget = "match"
+regexes = [
+  '''ghp_16C7e42F292c6912E7710c838347Ae178B4a''',
+  # the github-pat rule captures only the 36 chars after the prefix, so match that form
+  '''ghp_AAAABBBBCCCCDDDDEEEEFFFFGGGGHHHHIIII(JJ)?''',
+]
+
+[[allowlists]]
+description = "SHA256 fingerprint of my PUBLIC SSH signing key - public by definition, not a credential"
+regexTarget = "match"
+regexes = [
+  '''ABh0UQvCU7k59\+BS8DZ54r0q2GzeaOR0uuT0axOqYZ8''',
+]
