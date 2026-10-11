@@ -1,0 +1,46 @@
+# Custom Falco rules for Lab 9.
+
+# Task 1 (9.3): any write to /tmp from inside a container.
+- rule: Write to /tmp in a container
+  desc: >
+    A file under /tmp was opened for writing from inside a container. /tmp is a
+    common drop zone for staged payloads and tooling pulled in after a breakout,
+    so a write there that is not from the host is worth a look.
+  condition: >
+    open_write
+    and container.id != "host"
+    and fd.name startswith /tmp/
+  output: >
+    Write under /tmp in container
+    (container=%container.name image=%container.image.repository
+     user=%user.name uid=%user.uid file=%fd.name
+     proc=%proc.name cmdline=%proc.cmdline)
+  priority: WARNING
+  tags: [container, drift]
+
+# Bonus: likely cryptomining / pool C2, two signals combined.
+#   Signal 1: an outbound connection made from inside a container.
+#   Signal 2: the target or the tool is pool-like: a classic pool port, OR a
+#             process name that is a miner or a raw-socket tool miners use to
+#             reach a pool (nc/ncat/socat). Either signal on its own is noisy;
+#             requiring the container-egress gate plus one of these is the combination.
+- rule: Outbound connection to mining pool from container
+  desc: >
+    A process inside a container opened an outbound connection that looks like it
+    is reaching a mining pool: either a well-known pool port or a miner/raw-socket
+    process name. Pairs the network signal with an identity signal to cut the
+    false positives a single one would raise.
+  condition: >
+    evt.type = connect
+    and container.id != "host"
+    and (
+      fd.sport in (3333, 4444, 5555, 7777, 14444)
+      or proc.name in (xmrig, xmrig-proxy, minerd, cpuminer, xmr-stak, nc, ncat, socat)
+    )
+  output: >
+    Outbound connection resembling mining-pool traffic from container
+    (container=%container.name image=%container.image.repository
+     proc=%proc.name cmdline=%proc.cmdline
+     connection=%fd.name server_port=%fd.sport user=%user.name)
+  priority: CRITICAL
+  tags: [container, network, mitre_command_and_control, T1496]
